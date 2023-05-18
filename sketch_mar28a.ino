@@ -1,5 +1,3 @@
-
-
 template<class T> inline Print &operator <<(Print &obj, T arg) {
   obj.print(arg);
   return obj;
@@ -9,14 +7,16 @@ template<class T> inline Print &operator <<(Print &obj, T arg) {
 #include "CTBot.h"
 #include <EEPROM.h>
 
+
 CTBot miBot;
 CTBotInlineKeyboard miTeclado;
 
 #include "token.h"
 
 const int Led=2;
-const int Buzzer = 5;
-const int Sensor = 4;
+const int Buzzer=18;
+const int SensorPin = 4;
+int SensorState = 0;
 
 float tiempo = 0;
 float espera = 60;
@@ -27,7 +27,7 @@ const int DireccionActivo = 1;
 boolean Activo = true;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.println();
   Serial.println("Iniciando Bot de Telegram");
 
@@ -42,8 +42,9 @@ void setup() {
   Serial.print("Sonido: ");
   Serial.println(Sonido ? "Activo" : "Apagado");
 
+  pinMode(Buzzer, OUTPUT);
   pinMode(Led, OUTPUT);
-  pinMode(Sensor, INPUT);
+  pinMode(SensorPin, INPUT);
 
   miBot.wifiConnect(ssid, password);
 
@@ -67,11 +68,10 @@ void setup() {
 }
 
 void loop() {
-  //  Serial << millis() << " - " << tiempo << " - " << (millis() - tiempo) << " - " << (espera * 1000) << "\n";
-  
   SistemaAlarma();
   SistemaConfiguracion();
   digitalWrite(Led, Activo);
+  Serial.println(SensorState);//to graph 
 }
 
 void SistemaConfiguracion() {
@@ -121,7 +121,7 @@ void PedirEstado() {
   Serial.println("Enviando 'opciones'");
   String Mensaje  = "Estado Actual\n";
   Mensaje += "Alarma: ";
-  Mensaje += (Activo ? "Activo" : "Apagado");
+  Mensaje += (Sonido ? "Activo" : "Apagado");
   Mensaje += " - Sonido: ";
   Mensaje += (Sonido ? "Activo" : "Apagado");
   Serial.println(Mensaje);
@@ -130,17 +130,20 @@ void PedirEstado() {
 }
 void SistemaAlarma() {
   if (Activo) {
-    int Valor = digitalRead(Sensor);
-    if (Valor) {
-      if (millis() - tiempo > espera * 1000) {
+    SensorState = digitalRead(SensorPin);
+      if (SensorState == HIGH ) {
         Serial.println("Enviando Alerta");
         digitalWrite(Led, LOW);
-       
-        miBot.sendMessage(IDchat, "Alerta Camara: " + nombre);
+       digitalWrite(Buzzer, LOW);
+        miBot.sendMessage(IDchat, "Alerta Puerta Abierta" + nombre);
         delay(1000);
-        digitalWrite(Led, HIGH);
+        digitalWrite(Buzzer, HIGH);
+        digitalWrite(Led, LOW);
         tiempo = millis();
       }
-    }
+      if(SensorState==LOW){
+        digitalWrite(Led, LOW);
+       digitalWrite(Buzzer, LOW);
+      }
   }
 }
